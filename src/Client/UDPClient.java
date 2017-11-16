@@ -15,7 +15,7 @@ import PacketLib.Packet;
 import PacketLib.Packet.Builder;
 
 import static java.nio.channels.SelectionKey.OP_READ;
-
+//https://github.com/michellefish/UDP-SelectiveRepeat/blob/master/UDP-SelectiveRepeat/src/UDPClient.java
 public class UDPClient {
 
     
@@ -37,12 +37,10 @@ public class UDPClient {
             channel.configureBlocking(false);
             Selector selector = Selector.open();
             channel.register(selector, OP_READ);
-//            logger.info("Waiting for the response");
             selector.select(5000);
 
             Set<SelectionKey> keys = selector.selectedKeys();
             if(keys.isEmpty()){
-//                logger.error("No response after timeout");
                 return;
             }
 
@@ -51,11 +49,8 @@ public class UDPClient {
             SocketAddress router = channel.receive(buf);
             buf.flip();
             Packet resp = Packet.fromBuffer(buf);
-//            logger.info("Packet: {}", resp);
-//            logger.info("Router: {}", router);
             String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
-//            logger.info("Payload: {}",  payload);
-
+            System.out.println(payload);
             keys.clear();
         }
     }
