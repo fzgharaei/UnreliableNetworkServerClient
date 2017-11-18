@@ -16,20 +16,30 @@ public class Packet {
     public static final int MAX_LEN = 11 + 1024;
 
     private final int type;
-    private final long sequenceNumber;
+    private long sequenceNumber;
+    private final int seqN;
+    private final int ackN;
     private final InetAddress peerAddress;
     private final int peerPort;
     private final byte[] payload;
 
 
-    public Packet(int type, long sequenceNumber, InetAddress peerAddress, int peerPort, byte[] payload) {
+    public Packet(int type, int seqN, int ackN, InetAddress peerAddress, int peerPort, byte[] payload) {
         this.type = type;
-        this.sequenceNumber = sequenceNumber;
+        this.seqN = seqN;
+        this.ackN = ackN;
+        this.sequenceNumber = mkBigSeqN();
         this.peerAddress = peerAddress;
         this.peerPort = peerPort;
         this.payload = payload;
     }
 
+    public long mkBigSeqN(){
+    	long lseqN = (long)seqN;
+    	long lackN = (long)ackN;
+    	return lseqN | (lackN << 32);
+    }
+    
     public int getType() {
         return type;
     }
@@ -49,15 +59,15 @@ public class Packet {
     public byte[] getPayload() {
         return payload;
     }
-
+    
     /**
      * Creates a builder from the current packet.
      * It's used to create another packet by re-using some parts of the current packet.
      */
     public Builder toBuilder(){
         return new Builder()
-                .setType(type)
-                .setSequenceNumber(sequenceNumber)
+        		.setType(type)
+                .flipAcknSeq()
                 .setPeerAddress(peerAddress)
                 .setPortNumber(peerPort)
                 .setPayload(payload);
@@ -141,12 +151,22 @@ public class Packet {
         private InetAddress peerAddress;
         private int portNumber;
         private byte[] payload;
+        private int seqN;
+        private int ackN;
 
         public Builder setType(int type) {
             this.type = type;
             return this;
         }
-
+        
+        public Builder flipAcknSeq(){
+        	getackN();
+        	getseqN();
+        	int temp = ackN;
+        	this.ackN = seqN;
+        	this.seqN = temp;
+        	return this;
+        }
         public Builder setSequenceNumber(long sequenceNumber) {
             this.sequenceNumber = sequenceNumber;
             return this;
@@ -166,9 +186,27 @@ public class Packet {
             this.payload = payload;
             return this;
         }
-
+        public Builder setSeqN(int SeqN){
+        	this.seqN = SeqN;
+        	return this;
+        }
+        public Builder setAckN(int AckN){
+        	this.ackN = AckN;
+        	return this;
+        }
+        
+        public Builder getseqN(){
+        	this.seqN = (int) (sequenceNumber);
+        	return this;
+        }
+        
+        public Builder getackN(){
+        	this.ackN =  (int) (sequenceNumber >> 32);
+        	return this;
+        }
+        
         public Packet create() {
-            return new Packet(type, sequenceNumber, peerAddress, portNumber, payload);
+            return new Packet(type, seqN, ackN, peerAddress, portNumber, payload);
         }
     }
 }
