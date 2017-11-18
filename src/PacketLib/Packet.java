@@ -5,6 +5,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 
 /**
  * Packet represents a simulated network packet.
@@ -153,12 +154,30 @@ public class Packet {
         private byte[] payload;
         private int seqN;
         private int ackN;
-
+        private int AckFlag;
+        private int SynFlag;
+        private int FinFlag;
+        private int dataFlag;
         public Builder setType(int type) {
             this.type = type;
+            String temp = "0" +Integer.toString(type, 2);
+            char[] chars = temp.toCharArray();
+            String[] strs= new String[(chars.length+1)/2];
+            for(int i=0,j=0;i<chars.length;i+=2,j++)
+            {
+               strs[j]=new String(Arrays.copyOfRange(chars,i,i+2));
+            }
+            this.AckFlag = Integer.parseInt(strs[0],2);
+            this.SynFlag = Integer.parseInt(strs[1],2);
+            this.FinFlag = Integer.parseInt(strs[2],2);
+            this.dataFlag = Integer.parseInt(strs[0],2);
+            
             return this;
         }
-        
+        public Builder setType(){
+        	this.type = AckFlag | (SynFlag << 2) | (FinFlag << 4) | (dataFlag << 6);
+        	return this;
+        }
         public Builder flipAcknSeq(){
         	getackN();
         	getseqN();
@@ -204,7 +223,28 @@ public class Packet {
         	this.ackN =  (int) (sequenceNumber >> 32);
         	return this;
         }
-        
+       
+        public Builder setAckFlag(boolean flag){
+        	if(flag) this.AckFlag = 1;
+        	else this.AckFlag = 0;
+        	return this;
+        }
+        public Builder setSynFlag(boolean flag){
+        	if(flag) this.SynFlag = 1;
+        	else this.SynFlag = 0;
+        	return this;
+        }
+        public Builder setFinFlag(boolean flag){
+        	if(flag) this.FinFlag = 1;
+        	else this.FinFlag = 0;
+        	return this;
+        }
+        public Builder setDataFlag(boolean flag){
+        	if(flag) this.dataFlag = 1;
+        	else this.dataFlag = 0;
+        	return this;
+        }
+
         public Packet create() {
             return new Packet(type, seqN, ackN, peerAddress, portNumber, payload);
         }
