@@ -99,7 +99,7 @@ public class UDPClientCmdParser {
 								 dataSourseSet = true;
 							 }else
 								 throw new Exception("BadSyntax");
-							 i+=2;
+							 i+=3;
 							 break;	
 						}
 					}

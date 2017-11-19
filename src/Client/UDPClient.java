@@ -55,6 +55,7 @@ public class UDPClient {
     	ClientOptionParser parser = new ClientOptionParser();
     	UDPClientCmdParser inputParser = new UDPClientCmdParser();
     	UDP_Request request;
+    	PacketWrapper wrapper = new PacketWrapper();
     	Packet packet = null;
 
         parser.parse(args);
@@ -69,7 +70,7 @@ public class UDPClient {
 			
 			try {
 				String input = scanner.nextLine();
-				packet = PacketWrapper.makePacket(input);	
+				packet = wrapper.makePacket(input);	
 			} catch (Exception e) {
 				throw new Exception("Wrong Input Syntax !! Try Again");
 			}
