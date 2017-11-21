@@ -18,7 +18,6 @@ public class PacketWrapper {
 	        InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 			
 			Packet p = new Packet.Builder()
-                    .setType(0)
                     .setAckN(new Random().nextInt(65000))
                     .setSeqN(new Random().nextInt(65000))
                     .setPortNumber(serverPort)

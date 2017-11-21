@@ -10,20 +10,29 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
 import java.util.TimerTask;
-
-import PacketLib.Packet;
-
+import PacketLib.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
+
+//https://github.com/pilosoposerio/tcp-in-udp/blob/master/Server.java
 //https://github.com/michellefish/UDP-SelectiveRepeat/blob/master/UDP-SelectiveRepeat/src/UDPServer.java
 public class UDPServer {
 	final static int PACKET_SIZE = 512;
     final static int HEADER_SIZE = 118;
     final static int WINDOW_SIZE = 8;
+    private static State state = State.NONE;
     static int[] window;
     static int startWindow;
     static int numberOfTimeouts;
-	private static void selectiveRepeat(String filename) throws Exception {
+    public static void main(String[] args) throws IOException {
+    	ServerOptionParser parser = new ServerOptionParser();
+        parser.parse(args);
+        int port = Integer.parseInt((String) parser.valueOf("port"));
+        UDPServer server = new UDPServer();
+        server.listenAndServe(port);
+    }
+    
+    private static void selectiveRepeat(String filename) throws Exception {
 		
 	}
 	private static boolean allPacketsAcked(){
@@ -49,6 +58,8 @@ public class UDPServer {
         try (DatagramChannel channel = DatagramChannel.open()) {
             channel.bind(new InetSocketAddress(port));
 //            logger.info("EchoServer is listening at {}", channel.getLocalAddress());
+            System.out.println("EchoServer is listening at {} "+ channel.getLocalAddress());
+            
             ByteBuffer buf = ByteBuffer
                     .allocate(Packet.MAX_LEN)
                     .order(ByteOrder.BIG_ENDIAN);
@@ -63,51 +74,64 @@ public class UDPServer {
                 buf.flip();
 
                 String payload = new String(packet.getPayload(), UTF_8);
-//                logger.info("Packet: {}", packet);
-//                logger.info("Payload: {}", payload);
-//                logger.info("Router: {}", router);
-                System.out.println(payload);
-                // Send the response to the router not the client.
-                // The peer address of the packet is the address of the client already.
-                // We can use toBuilder to copy properties of the current packet.
-                // This demonstrate how to create a new packet from an existing packet.
-                payload = "Hiii Client";
+                System.out.println("Packet:  "+ packet);
+                System.out.println("Payload: "+ payload);
+                System.out.println("Router:  "+ router);
+              
                 Packet resp = packet.toBuilder()
-                        .setPayload(payload.getBytes())
-                        .create();
+                      .setPayload(payload.getBytes())
+                      .create();
                 channel.send(resp.toBuffer(), router);
 
+                if(state == State.NONE){
+                }else if(state == State.SYN_RECV){
+                }else if(state == State.ESTABLISHED){
+                }else if(state == State.FIN_SEND){
+                }
             }
-        }
+        } catch (IOException e) {
+			// TODO Auto-generated catch block
+        	System.out.println("Cannot bind socket to port "+port);
+			e.printStackTrace();
+			return;
+		}
+        	
     }
-    private static class PacketTimeout extends TimerTask{
-        private int seq;
-        private byte[] message;
-     	
-        public PacketTimeout(int seq, byte[] message){
-           this.seq = seq;
-           this.message = message;
-        }
-     	
-        public void run(){
-           //if packet has not been ACKed
-           if(window[seq] == 0){
-              System.out.println("***PACKET TIMEOUT (seq: "+seq+")***");
-              numberOfTimeouts++;
-              try{
-                 sendPacket(seq, message);
-              }
-                 catch (Exception e){}
-           }
-        }
-    }
-    public static void main(String[] args) throws IOException {
-    	ServerOptionParser parser = new ServerOptionParser();
-        
+    private static Thread timerThread(final int seconds){
+		return new Thread(new Runnable(){
+			@Override
+			public void run(){
+				try{
 
-        parser.parse(args);
-        int port = Integer.parseInt((String) parser.valueOf("port"));
-        UDPServer server = new UDPServer();
-        server.listenAndServe(port);
-    }
+					Thread.sleep(seconds*1000);
+				}catch(InterruptedException ie){
+
+				}
+			}
+		});
 }
+
+}
+
+
+//private static class PacketTimeout extends TimerTask{
+//private int seq;
+//private byte[] message;
+//
+//public PacketTimeout(int seq, byte[] message){
+// this.seq = seq;
+// this.message = message;
+//}
+//
+//public void run(){
+// //if packet has not been ACKed
+// if(window[seq] == 0){
+//    System.out.println("***PACKET TIMEOUT (seq: "+seq+")***");
+//    numberOfTimeouts++;
+//    try{
+//       sendPacket(seq, message);
+//    }
+//       catch (Exception e){}
+// }
+//}
+//}
