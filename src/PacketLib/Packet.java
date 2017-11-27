@@ -119,11 +119,11 @@ public class Packet {
 
         builder.setType(Byte.toUnsignedInt(buf.get()));
         builder.setSequenceNumber(Integer.toUnsignedLong(buf.getInt()));
-
+        
         byte[] host = new byte[]{buf.get(), buf.get(), buf.get(), buf.get()};
         builder.setPeerAddress(Inet4Address.getByAddress(host));
         builder.setPortNumber(Short.toUnsignedInt(buf.getShort()));
-
+        
         byte[] payload = new byte[buf.remaining()];
         buf.get(payload);
         builder.setPayload(payload);
@@ -188,6 +188,8 @@ public class Packet {
         }
         public Builder setSequenceNumber(long sequenceNumber) {
             this.sequenceNumber = sequenceNumber;
+            this.seqN = (int) (sequenceNumber);
+            this.ackN =  (int) (this.sequenceNumber >> 32);
             return this;
         }
 
@@ -214,14 +216,14 @@ public class Packet {
         	return this;
         }
         
-        public Builder getseqN(){
+        public int getseqN(){
         	this.seqN = (int) (sequenceNumber);
-        	return this;
+        	return this.seqN;
         }
         
-        public Builder getackN(){
+        public int getackN(){
         	this.ackN =  (int) (sequenceNumber >> 32);
-        	return this;
+        	return this.ackN;
         }
        
         public Builder setAckFlag(boolean flag){
