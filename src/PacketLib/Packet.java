@@ -60,7 +60,12 @@ public class Packet {
     public byte[] getPayload() {
         return payload;
     }
-    
+    public int getAckN(){
+    	return this.ackN;
+    }
+    public int getSeqN(){
+    	return this.seqN;
+    }
     /**
      * Creates a builder from the current packet.
      * It's used to create another packet by re-using some parts of the current packet.
