@@ -138,19 +138,27 @@ public class UDPClient {
     
     public static  Packet makePacket(String input, State state) throws Exception {
 		try {
+			if(input!=null){
 			request = inputParser.parse(input.split(" "));
-			String serverHost = new URL(request.getUrl()).getHost();
-			int serverPort = new URL(request.getUrl()).getPort();
-	        InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
+			//String serverHost = new URL(request.getUrl()).getHost();
+			//int serverPort = new URL(request.getUrl()).getPort();
+			}
+			String serverHost = "localhost";
+			int serverPort = 8007;
+			InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 	        Packet p;
-	       
+	        String initString = " ";
+	        //byte[] initData = Byte.valueOf(initString);
 	        if(state == State.NONE)
 	        {
 	        	p =new Packet.Builder()
 	        			.setSynFlag(true)
 	        			.setAckFlag(false)
+	        			.setDataFlag(false)
+	        			.setFinFlag(false)
 	        			.setType()
 	        			.setSeqN(new Random().nextInt(65000))
+	        			.setPayload(initString.getBytes())
 	        			.setPortNumber(serverPort)
 	        			.setPeerAddress(serverAddress.getAddress())
 	        			.create();
@@ -163,13 +171,15 @@ public class UDPClient {
 	        	p =new Packet.Builder()
 	        			.setSynFlag(true)
 	        			.setAckFlag(true)
+	        			.setDataFlag(false)
+	        			.setFinFlag(false)
 	        			.setType()
 	        			.setSeqN(SYNC_NUM)
 	        			.setAckN(ACK_NUM)
 	        			.setPortNumber(serverPort)
 	        			.setPeerAddress(serverAddress.getAddress())
 	        			.create();
-	        	System.out.println("Threeway handshake 1/3.");
+	        	System.out.println("Threeway handshake 2/3.");
 	        	state = State.ESTABLISHED;
 	        	
 	        	return p;
@@ -177,6 +187,8 @@ public class UDPClient {
 	        	p = new Packet.Builder()
 	        			.setSynFlag(true)
 	        			.setAckFlag(true)
+	        			.setDataFlag(false)
+	        			.setFinFlag(false)
 	        			.setType()
 	                    //.setAckN(ACK_NUM)
 	                    //.setSeqN(SYNC_NUM)
