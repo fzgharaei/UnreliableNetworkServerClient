@@ -16,7 +16,7 @@ public class Packet {
     public static final int MIN_LEN = 11;
     public static final int MAX_LEN = 11 + 1024;
 
-    private final int type;
+    private  int type;
     private long sequenceNumber;
     private final int seqN;
     private final int ackN;
@@ -84,7 +84,7 @@ public class Packet {
      * The order of the buffer should be set as BigEndian.
      */
     private void write(ByteBuffer buf) {
-        buf.put((byte) type);
+    	buf.put((byte) type);
         buf.putInt((int) sequenceNumber);
         buf.put(peerAddress.getAddress());
         buf.putShort((short) peerPort);
@@ -165,22 +165,44 @@ public class Packet {
         private int dataFlag;
         public Builder setType(int type) {
             this.type = type;
-            String temp = "0" +Integer.toString(type, 2);
-            char[] chars = temp.toCharArray();
-            String[] strs= new String[(chars.length+1)/2];
-            for(int i=0,j=0;i<chars.length;i+=2,j++)
-            {
-               strs[j]=new String(Arrays.copyOfRange(chars,i,i+2));
-            }
-            this.AckFlag = Integer.parseInt(strs[0],2);
-            this.SynFlag = Integer.parseInt(strs[1],2);
-            this.FinFlag = Integer.parseInt(strs[2],2);
-            this.dataFlag = Integer.parseInt(strs[0],2);
+//            System.out.println("in the setTYPE"+type);
+            
+	       	byte btype = (byte)type;
+	       	
+	       	  this.AckFlag = ((btype & 0x1) != 0)?1:0; 
+	          this.SynFlag = ((btype & 0x4) != 0)?1:0;
+	          this.FinFlag = ((btype & 0x10) != 0)?1:0;
+	          this.dataFlag = ((btype & 0x40) != 0)?1:0;
+//	          System.out.println((int)btype);
+//	          System.out.println((int)btype1);
+//	          System.out.println((int)btype2);
+//	          System.out.println((int)btype3);
+//	          System.out.println((btype & 0x1) != 0);
+//	          System.out.println((btype & 0x2) != 0);
+//	          System.out.println((btype & 0x4) != 0);
+//	          System.out.println((btype & 0x8) != 0);
+//	          System.out.println((btype & 0x10) != 0);
+//	          System.out.println((btype & 0x20) != 0);
+//	          System.out.println((btype & 0x40) != 0);
+//	          System.out.println((btype & 0x80) != 0);
+//	          String temp = "00000000"; 
+//            char[] chars = temp.toCharArray();
+//            byte[] temp1 = (byte)type;
+//            System.out.println("String value of type"+ String.valueOf(Integer.toString(type, 2)));
+//            System.out.println("char array of type" + temp1);
+//            System.out.println("char array of zeroes" + chars);
+//            String[] strs= new String[(chars.length+1)/2];
+//            for(int i=0,j=0;i<chars.length;i+=2,j++)
+//            {
+//               strs[j]=new String(Arrays.copyOfRange(chars,i,i+2));
+//               System.out.println(strs[j]);
+//            }
             
             return this;
         }
         public Builder setType(){
         	this.type = AckFlag | (SynFlag << 2) | (FinFlag << 4) | (dataFlag << 6);
+        	System.out.println("in setType()" + type);
         	return this;
         }
         public Builder flipAcknSeq(){
@@ -251,7 +273,19 @@ public class Packet {
         	else this.dataFlag = 0;
         	return this;
         }
-
+        
+        public boolean hasAckFlag(){
+        	return this.AckFlag == 1;
+        }
+        public boolean hasSynFlag(){
+        	return this.SynFlag == 1;
+        }
+        public boolean hasDataFlag(){
+        	return this.dataFlag == 1;
+        }
+        public boolean hasFinFlag(){
+        	return this.FinFlag == 1;
+        }
         public Packet create() {
             return new Packet(type, seqN, ackN, peerAddress, portNumber, payload);
         }
