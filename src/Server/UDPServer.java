@@ -9,7 +9,10 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
+import java.util.ArrayList;
 import java.util.TimerTask;
+import java.util.concurrent.ThreadLocalRandom;
+
 import PacketLib.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
@@ -20,39 +23,24 @@ public class UDPServer {
 	final static int PACKET_SIZE = 512;
     final static int HEADER_SIZE = 118;
     final static int WINDOW_SIZE = 8;
+    static int mainPort;
+    static int lastPort;
     private static State state = State.NONE;
+    static ArrayList<ClientHandler> clients;
     static int[] window;
     static int startWindow;
     static int numberOfTimeouts;
     public static void main(String[] args) throws IOException {
     	ServerOptionParser parser = new ServerOptionParser();
         parser.parse(args);
-        int port = Integer.parseInt((String) parser.valueOf("port"));
+        mainPort = Integer.parseInt((String) parser.valueOf("port"));
+        lastPort = mainPort;
         UDPServer server = new UDPServer();
-        server.listenAndServe(port);
+        clients = new ArrayList<ClientHandler>();
+        state = State.NONE;
+        server.listenAndServe(mainPort);
     }
-    
-    private static void selectiveRepeat(String filename) throws Exception {
-		
-	}
-	private static boolean allPacketsAcked(){
-		return false;
-	}
-	private static byte[][] segmentation(String filename) throws Exception{
-        FileInputStream filestream = new FileInputStream(new File(filename));
-        int size = (int)Math.ceil((double)(filestream.available())/(PACKET_SIZE-HEADER_SIZE));
-        byte[][] segmentedFile = new byte[size][PACKET_SIZE-HEADER_SIZE];
-        for(int i = 0; i < size; i++){
-           for(int j = 0; j < (PACKET_SIZE-HEADER_SIZE); j++){
-              if(filestream.available() != 0)
-                 segmentedFile[i][j] = (byte)filestream.read();
-              else
-                 segmentedFile[i][j] = 0;
-           }
-        }
-        filestream.close();
-        return segmentedFile;
-}
+
     private void listenAndServe(int port) throws IOException {
 
         try (DatagramChannel channel = DatagramChannel.open()) {
@@ -77,16 +65,44 @@ public class UDPServer {
                 System.out.println("Packet:  "+ packet);
                 System.out.println("Payload: "+ payload);
                 System.out.println("Router:  "+ router);
-              
-                Packet resp = packet.toBuilder()
-                      .setPayload(payload.getBytes())
-                      .create();
-                channel.send(resp.toBuffer(), router);
 
                 if(state == State.NONE){
-                }else if(state == State.SYN_RECV){
-                }else if(state == State.ESTABLISHED){
-                }else if(state == State.FIN_SEND){
+                	if(packet.toBuilder().hasSynFlag() && !packet.toBuilder().hasAckFlag()){
+//                		try(DatagramChannel clientchannel = DatagramChannel.open() ) {
+                			if ((lastPort - mainPort) > 10){
+                				state = State.FULL;
+                				continue;
+                			}
+//                			lastPort++;
+                			System.out.println("Threeway handshake 1/3 with "+ packet.getPeerAddress());
+							
+//                			payload = "port:"+lastPort;
+							//send ACK+SYN packet
+                			int ACK_NUM = packet.getSeqN() + 1;
+                			int SYNC_NUM = ThreadLocalRandom.current().nextInt(1, 5000);
+							System.out.println("Here!!!");
+                			Packet resp = packet.toBuilder()
+                					 .setAckFlag(true)
+                					 .setAckN(ACK_NUM)
+                					 .setSynFlag(true)
+                					 .setSeqN(SYNC_NUM)
+                                     .setPayload(payload.getBytes())
+                                     .create();
+                               channel.send(resp.toBuffer(), router);
+                               System.out.println("here1");
+//							clientchannel.bind(new InetSocketAddress(lastPort));
+							System.out.println("EchoServer is listening to a new client at {} "+ channel.getLocalAddress());
+            	            ClientHandler newCli = new ClientHandler(lastPort, resp, channel, router);
+            	            clients.add(newCli);
+            	            Thread cliListener = new Thread(newCli);
+            	            cliListener.start();
+//            	    	} catch(IOException e) {
+            	            	
+//            	        }
+                	}
+                		
+                }else if(state == State.FULL){
+                	//reverse the packet and response the server cannot give service to client at this time...
                 }
             }
         } catch (IOException e) {
