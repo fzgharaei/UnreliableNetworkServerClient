@@ -50,13 +50,13 @@ public class UDPClient {
             }
 
             // We just want a single response.
-            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-            SocketAddress router = channel.receive(buf);
-            buf.flip();
-            Packet resp = Packet.fromBuffer(buf);
-            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
-            System.out.println(payload);
-            keys.clear();
+//            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+//            SocketAddress router = channel.receive(buf);
+//            buf.flip();
+//            Packet resp = Packet.fromBuffer(buf);
+//            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+//            System.out.println(payload);
+//            keys.clear();
         }
     }
 
@@ -75,17 +75,64 @@ public class UDPClient {
 //        state = State.NONE;
         senderRouterAddress = new InetSocketAddress(routerHost, routerPort);
        
-        listener.start();
+        //listener.start();
 		System.out.println("UDP listener for this client started!");
        
 		Packet packet = makePacket(null, state);
 		runClient(senderRouterAddress, packet);
 		state = State.SYN_SEND;
 		System.out.println("Threeway handshake 1/3.");
+		while(true){
+
+			Packet responsePacket;
+			ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+			try {
+				
+				SocketAddress receiverRouterAddress = channel.receive(buf);
+				buf.flip();
+	        
+				responsePacket = Packet.fromBuffer(buf);
+				String payload = new String(responsePacket.getPayload(), StandardCharsets.UTF_8);
+				System.out.println(payload);
+				
+				if(state == State.SYN_SEND ){
+					if( responsePacket.getAckN() == responsePacket.getSeqN() + 1){
+			        	  System.out.println("Threeway handshake 2/3.");
+			        	  
+			        	  SYNC_NUM = responsePacket.getAckN();
+			        	  ACK_NUM = responsePacket.getSeqN()+ 1;
+			        	  
+			        	  Packet ackPacket = makePacket(null, state);
+			        	  
+			        	  System.out.println("Threeway handshake 3/3.");
+			        	  
+			        	  runClient(senderRouterAddress, ackPacket);
+			        	  
+			        	  state = State.ESTABLISHED;
+			        	  SYNC_NUM =  INITIAL_SEGMENT = ACK_NUM;
+		        	 
+			    }
+				}else if(state == State.ESTABLISHED){
+					if(responsePacket.getSeqN() > SYNC_NUM){
+						
+					}
+//					String input = scanner.nextLine();
+//					packet = makePacket(input, state);
+//					packet = PacketWrapper.makePacket(null, state);
+					
+				}else if(state == State.FIN_RECV){
+			        
+		        }
+					
+			}
+			catch (Exception e) {
+					System.out.println("Failed to receive a packet... "+e.getMessage());
+				} 
+			} 
         
 		}
     
-	private static Thread listener = new Thread(new Runnable(){
+	/*private static Thread listener = new Thread(new Runnable(){
 		@Override 
 		public void run() { 
 			while(true){
@@ -99,9 +146,10 @@ public class UDPClient {
 		        
 					responsePacket = Packet.fromBuffer(buf);
 					String payload = new String(responsePacket.getPayload(), StandardCharsets.UTF_8);
+					System.out.println(payload);
 					
-					if(state == State.SYN_SEND && responsePacket.getAckN() == responsePacket.getSeqN() + 1){
-						
+					if(state == State.SYN_SEND ){
+						if( responsePacket.getAckN() == responsePacket.getSeqN() + 1){
 				        	  System.out.println("Threeway handshake 2/3.");
 				        	  
 				        	  SYNC_NUM = responsePacket.getAckN();
@@ -116,7 +164,8 @@ public class UDPClient {
 				        	  state = State.ESTABLISHED;
 				        	  SYNC_NUM =  INITIAL_SEGMENT = ACK_NUM;
 			        	 
-				    }else if(state == State.ESTABLISHED){
+				    }
+					}else if(state == State.ESTABLISHED){
 						if(responsePacket.getSeqN() > SYNC_NUM){
 							
 						}
@@ -130,11 +179,11 @@ public class UDPClient {
 						
 				}
 				catch (Exception e) {
-						System.out.println("Failed to receive a packet... "+e.getMessage());
+						//System.out.println("Failed to receive a packet... "+e.getMessage());
 					} 
 				} 
 			} 
-		}); 
+		}); */
     
     public static  Packet makePacket(String input, State state) throws Exception {
 		try {
