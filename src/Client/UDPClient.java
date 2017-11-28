@@ -29,11 +29,12 @@ public class UDPClient {
 	private static int SYNC_NUM = 0;
 	private static DatagramChannel channel;
 	private static int INITIAL_SEGMENT = 0;
+	private static SocketAddress senderRouterAddress;
     
-    private static void runClient(SocketAddress routerAddr,Packet p) throws IOException {
+    private static void runClient(SocketAddress senderRouterAddress,Packet p) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
            
-        	channel.send(p.toBuffer(), routerAddr);
+        	channel.send(p.toBuffer(), senderRouterAddress);
 
 //            logger.info("Sending \"{}\" to router at {}", msg, routerAddr);
 
@@ -64,8 +65,6 @@ public class UDPClient {
     	ClientOptionParser parser = new ClientOptionParser();
     	//UDPClientCmdParser inputParser = new UDPClientCmdParser();
     	//UDP_Request request;
-    	Packet packet = null;
-
         parser.parse(args);
 
         // Router address
@@ -73,57 +72,70 @@ public class UDPClient {
         int routerPort = Integer.parseInt((String) parser.valueOf("router-port"));
         
         //should initiate the handshaking process and build the initial packets now
-        state = State.NONE;
+//        state = State.NONE;
+        senderRouterAddress = new InetSocketAddress(routerHost, routerPort);
        
-        SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
+        listener.start();
+		System.out.println("UDP listener for this client started!");
        
-		while(true){
-			
-			channel = DatagramChannel.open();
-			ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-	        SocketAddress router = channel.receive(buf);
-	        buf.flip();
-	        Packet responsePacket = Packet.fromBuffer(buf);
-			
-			try {
-				if(state == State.NONE)
-				{
-					packet = makePacket(null, state);
-					runClient(routerAddress, packet);
-					
-				}else if(state == State.SYN_SEND 
-						&& responsePacket.getAckN() == responsePacket.getSeqN() + 1)
-				{
-			        	  System.out.println("Threeway handshake 2/3.");
-			        	  
-			        	  SYNC_NUM = responsePacket.getAckN();
-			        	  ACK_NUM = responsePacket.getSeqN()+ 1;
-			        	  
-			        	  Packet ackPacket = makePacket(null, state);
-			        	  
-			        	  System.out.println("Threeway handshake 3/3.");
-			        	  
-			        	  runClient(routerAddress, ackPacket);
-			        	  state = State.ESTABLISHED;
-			        	  SYNC_NUM =  INITIAL_SEGMENT = ACK_NUM;
-			        	 
-			    }else if(state == State.ESTABLISHED){
-					if(responsePacket.getSeqN() > SYNC_NUM){
-						
-					}
-					String input = scanner.nextLine();
-					packet = makePacket(input, state);
-					//packet = PacketWrapper.makePacket(null, state);
-					
-				}else if(state == State.FIN_RECV){
-			        
-		        }
-					
-			}catch (Exception e) {
-				throw new Exception("Wrong Input Syntax !! Try Again");		
-			}
+		Packet packet = makePacket(null, state);
+		runClient(senderRouterAddress, packet);
+		state = State.SYN_SEND;
+		System.out.println("Threeway handshake 1/3.");
+        
 		}
-    }
+    
+	private static Thread listener = new Thread(new Runnable(){
+		@Override 
+		public void run() { 
+			while(true){
+
+				Packet responsePacket;
+				ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+				try {
+					
+					SocketAddress receiverRouterAddress = channel.receive(buf);
+					buf.flip();
+		        
+					responsePacket = Packet.fromBuffer(buf);
+					String payload = new String(responsePacket.getPayload(), StandardCharsets.UTF_8);
+					
+					if(state == State.SYN_SEND && responsePacket.getAckN() == responsePacket.getSeqN() + 1){
+						
+				        	  System.out.println("Threeway handshake 2/3.");
+				        	  
+				        	  SYNC_NUM = responsePacket.getAckN();
+				        	  ACK_NUM = responsePacket.getSeqN()+ 1;
+				        	  
+				        	  Packet ackPacket = makePacket(null, state);
+				        	  
+				        	  System.out.println("Threeway handshake 3/3.");
+				        	  
+				        	  runClient(senderRouterAddress, ackPacket);
+				        	  
+				        	  state = State.ESTABLISHED;
+				        	  SYNC_NUM =  INITIAL_SEGMENT = ACK_NUM;
+			        	 
+				    }else if(state == State.ESTABLISHED){
+						if(responsePacket.getSeqN() > SYNC_NUM){
+							
+						}
+	//					String input = scanner.nextLine();
+	//					packet = makePacket(input, state);
+	//					packet = PacketWrapper.makePacket(null, state);
+						
+					}else if(state == State.FIN_RECV){
+				        
+			        }
+						
+				}
+				catch (Exception e) {
+						System.out.println("Failed to receive a packet... "+e.getMessage());
+					} 
+				} 
+			} 
+		}); 
+    
     public static  Packet makePacket(String input, State state) throws Exception {
 		try {
 			request = inputParser.parse(input.split(" "));
@@ -170,7 +182,7 @@ public class UDPClient {
 	                    //.setSeqN(SYNC_NUM)
 	                    .setPortNumber(serverPort)
 	                    .setPeerAddress(serverAddress.getAddress())
-	                //    .setPayload(request.getRequestParameters().getData().getBytes())
+//	                    .setPayload(request.getRequestParameters().getData().getBytes())
 	                    .create();
 				
 	        	return p;
@@ -178,7 +190,6 @@ public class UDPClient {
 	        
 	        }
 
-			
 		} catch (Exception e) {
 			throw new Exception("ERROR Wrapping Packet");
 		}
@@ -187,4 +198,5 @@ public class UDPClient {
 		
 	}
 }
+
 
