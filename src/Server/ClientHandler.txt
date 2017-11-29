@@ -51,22 +51,36 @@ public class ClientHandler implements Runnable{
 	}
 	public void serve() throws IOException, InterruptedException{
 		System.out.println("here2");
+		state = State.SYN_RECV;
 		ByteBuffer buf = ByteBuffer
                 .allocate(Packet.MAX_LEN)
                 .order(ByteOrder.BIG_ENDIAN);
+		System.out.println("here2.1");
 		while(true){
+			System.out.println("here2.2");
 			buf.clear();
 			router = channel.receive(buf);
 			buf.flip();
             Packet packet = Packet.fromBuffer(buf);
+            System.out.println("here2.3");
+//            System.out.println(packet);
             buf.flip();
+            System.out.println("here2.5");
             // some time managment should happen here!
 			if(state == State.SYN_RECV){
-				if(packet.toBuilder().hasAckFlag() && packet.toBuilder().getackN() == (++cliSeqN)){
+				System.out.println("here3");
+				
+				if(packet.toBuilder().hasAckFlag()){
+					System.out.println("here4");
+					
+					if(packet.toBuilder().getackN() == (cliSeqN) && packet.toBuilder().getseqN()==(++cliAckN) ){
+					System.out.println("here5");
+					
 					state = State.ESTABLISHED;
 					System.out.println("Threeway handshake 3/3.");
 					
-				}
+					}
+					}
 	        }else if(state == State.ESTABLISHED){
 	    
 	        }else if(state == State.FIN_SEND){

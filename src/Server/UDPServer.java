@@ -1,6 +1,5 @@
 package Server;
 
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -9,6 +8,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
+
 import java.util.ArrayList;
 import java.util.TimerTask;
 import java.util.concurrent.ThreadLocalRandom;
@@ -52,7 +52,7 @@ public class UDPServer {
                     .allocate(Packet.MAX_LEN)
                     .order(ByteOrder.BIG_ENDIAN);
 
-            for (; ; ) {
+//            for (; ; ) {
                 buf.clear();
                 SocketAddress router = channel.receive(buf);
                 System.out.println(buf.toString());
@@ -71,23 +71,28 @@ public class UDPServer {
 //                		try(DatagramChannel clientchannel = DatagramChannel.open() ) {
                 			if ((lastPort - mainPort) > 10){
                 				state = State.FULL;
-                				continue;
+//                				continue;
                 			}
 //                			lastPort++;
                 			System.out.println("Threeway handshake 1/3 with "+ packet.getPeerAddress());
 							
 //                			payload = "port:"+lastPort;
 							//send ACK+SYN packet
-                			int ACK_NUM = packet.getSeqN() + 1;
-                			int SYNC_NUM = ThreadLocalRandom.current().nextInt(1, 5000);
+                			System.out.println(packet.getSeqN());
+                			int ACK_NUM = packet.getSeqN();
+                			int SYNC_NUM = ThreadLocalRandom.current().nextInt(1, 256);
 							System.out.println("Here!!!");
                 			Packet resp = packet.toBuilder()
-                					 .setAckFlag(true)
-                					 .setAckN(ACK_NUM)
-                					 .setSynFlag(true)
-                					 .setSeqN(SYNC_NUM)
-                                     .setPayload(payload.getBytes())
-                                     .create();
+                					.setSynFlag(true)
+            	        			.setAckFlag(true)
+            	        			.setDataFlag(false)
+            	        			.setFinFlag(false)
+                					.setAckN(ACK_NUM)
+                					.setSeqN(SYNC_NUM)
+                                    .setPayload(payload.getBytes())
+                                    .setPeerAddress(packet.getPeerAddress())
+                                    .setPortNumber(packet.getPeerPort())
+                                    .create();
                                channel.send(resp.toBuffer(), router);
                                System.out.println("here1");
 //							clientchannel.bind(new InetSocketAddress(lastPort));
@@ -104,7 +109,7 @@ public class UDPServer {
                 }else if(state == State.FULL){
                 	//reverse the packet and response the server cannot give service to client at this time...
                 }
-            }
+//            }
         } catch (IOException e) {
 			// TODO Auto-generated catch block
         	System.out.println("Cannot bind socket to port "+port);
@@ -126,8 +131,106 @@ public class UDPServer {
 			}
 		});
 }
-
+    class ClientHandler implements Runnable{
+    	final int PACKET_SIZE = 1024;
+        final int HEADER_SIZE = 11;
+        final int WINDOW_SIZE = 8;
+        private State state = State.NONE;
+    	int[] window;
+        int startWindow;
+        int numberOfTimeouts;
+        DatagramChannel channel;
+        SocketAddress router;
+        final int port;
+        int cliSeqN;
+        int cliAckN;
+        Packet infoPacket;
+        ClientHandler(int port, Packet initial, DatagramChannel channel, SocketAddress router){
+        	this.port = port;
+        	state = State.SYN_RECV;
+        	System.out.println("Threeway handshake 2/3 with" + initial.getPeerAddress() +":"+ initial.getPeerPort());
+        	infoPacket = initial;
+        	this.channel = channel;
+        	this.router = router;
+        	this.cliAckN = initial.getAckN();
+        	this.cliSeqN = initial.getSeqN();
+        }
+        
+    	@Override
+    	public void run() {
+    		try {
+    			System.out.println("Thread started with name:"
+    					+ Thread.currentThread().getName());
+    			serve();
+    			return;
+    		} catch (IOException e) {
+    			e.printStackTrace();
+    		} catch (InterruptedException e) {
+    			e.printStackTrace();
+    		}
+    		
+    	}
+    	public void serve() throws IOException, InterruptedException{
+    		System.out.println("here2");
+    		state = State.SYN_RECV;
+    		ByteBuffer buf = ByteBuffer
+                    .allocate(Packet.MAX_LEN)
+                    .order(ByteOrder.BIG_ENDIAN);
+    		System.out.println("here2.1");
+    		while(true){
+    			System.out.println("here2.2");
+    			buf.clear();
+    			router = channel.receive(buf);
+    			buf.flip();
+                Packet packet = Packet.fromBuffer(buf);
+                System.out.println("here2.3");
+//                System.out.println(packet);
+                buf.flip();
+                System.out.println("here2.5");
+                // some time managment should happen here!
+    			if(state == State.SYN_RECV){
+    				System.out.println("here3");
+    				
+    				if(packet.toBuilder().hasAckFlag()){
+    					System.out.println("here4");
+    					
+    					if(packet.toBuilder().getackN() == (cliSeqN) && packet.toBuilder().getseqN()==(++cliAckN) ){
+    					System.out.println("here5");
+    					
+    					state = State.ESTABLISHED;
+    					System.out.println("Threeway handshake 3/3.");
+    					
+    					}
+    					}
+    	        }else if(state == State.ESTABLISHED){
+    	    
+    	        }else if(state == State.FIN_SEND){
+    	        
+    	        }
+    		}
+    	}
+    	
+    	private byte[][] segmentation(String filename) throws Exception{
+            FileInputStream filestream = new FileInputStream(new File(filename));
+            int size = (int)Math.ceil((double)(filestream.available())/(PACKET_SIZE-HEADER_SIZE));
+            byte[][] segmentedFile = new byte[size][PACKET_SIZE-HEADER_SIZE];
+            for(int i = 0; i < size; i++){
+               for(int j = 0; j < (PACKET_SIZE-HEADER_SIZE); j++){
+                  if(filestream.available() != 0)
+                     segmentedFile[i][j] = (byte)filestream.read();
+                  else
+                     segmentedFile[i][j] = 0;
+               }
+            }
+            filestream.close();
+            return segmentedFile;
+    }
+        
+    }
 }
+
+
+
 
 
 //private static class PacketTimeout extends TimerTask{

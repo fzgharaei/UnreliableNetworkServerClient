@@ -17,7 +17,7 @@ public class Packet {
     public static final int MAX_LEN = 11 + 1024;
 
     private  int type;
-    private long sequenceNumber;
+    private int sequenceNumber;
     private final int seqN;
     private final int ackN;
     private final InetAddress peerAddress;
@@ -35,10 +35,12 @@ public class Packet {
         this.payload = payload;
     }
 
-    public long mkBigSeqN(){
+    public int mkBigSeqN(){
+    	System.out.println("in make big seq, seqN "+ seqN);
     	long lseqN = (long)seqN;
     	long lackN = (long)ackN;
-    	return lseqN | (lackN << 32);
+//    	return lseqN | (lackN << 16);
+    	return seqN | (ackN << 8);
     }
     
     public int getType() {
@@ -73,7 +75,6 @@ public class Packet {
     public Builder toBuilder(){
         return new Builder()
         		.setType(type)
-                .flipAcknSeq()
                 .setPeerAddress(peerAddress)
                 .setPortNumber(peerPort)
                 .setPayload(payload);
@@ -119,20 +120,20 @@ public class Packet {
         if (buf.limit() < MIN_LEN || buf.limit() > MAX_LEN) {
             throw new IOException("Invalid length");
         }
-
+        System.out.println("here3.1");
         Builder builder = new Builder();
 
         builder.setType(Byte.toUnsignedInt(buf.get()));
         builder.setSequenceNumber(Integer.toUnsignedLong(buf.getInt()));
-        
+        System.out.println("here3.2");
         byte[] host = new byte[]{buf.get(), buf.get(), buf.get(), buf.get()};
         builder.setPeerAddress(Inet4Address.getByAddress(host));
         builder.setPortNumber(Short.toUnsignedInt(buf.getShort()));
-        
+        System.out.println("here3.3");
         byte[] payload = new byte[buf.remaining()];
         buf.get(payload);
         builder.setPayload(payload);
-
+        System.out.println("here3.4");
         return builder.create();
     }
 
@@ -148,6 +149,7 @@ public class Packet {
 
     @Override
     public String toString() {
+    	System.out.println("here2.4");
         return String.format("#%d peer=%s:%d, size=%d", sequenceNumber, peerAddress, peerPort, payload.length);
     }
 
@@ -165,7 +167,6 @@ public class Packet {
         private int dataFlag;
         public Builder setType(int type) {
             this.type = type;
-//            System.out.println("in the setTYPE"+type);
             
 	       	byte btype = (byte)type;
 	       	
@@ -173,30 +174,7 @@ public class Packet {
 	          this.SynFlag = ((btype & 0x4) != 0)?1:0;
 	          this.FinFlag = ((btype & 0x10) != 0)?1:0;
 	          this.dataFlag = ((btype & 0x40) != 0)?1:0;
-//	          System.out.println((int)btype);
-//	          System.out.println((int)btype1);
-//	          System.out.println((int)btype2);
-//	          System.out.println((int)btype3);
-//	          System.out.println((btype & 0x1) != 0);
-//	          System.out.println((btype & 0x2) != 0);
-//	          System.out.println((btype & 0x4) != 0);
-//	          System.out.println((btype & 0x8) != 0);
-//	          System.out.println((btype & 0x10) != 0);
-//	          System.out.println((btype & 0x20) != 0);
-//	          System.out.println((btype & 0x40) != 0);
-//	          System.out.println((btype & 0x80) != 0);
-//	          String temp = "00000000"; 
-//            char[] chars = temp.toCharArray();
-//            byte[] temp1 = (byte)type;
-//            System.out.println("String value of type"+ String.valueOf(Integer.toString(type, 2)));
-//            System.out.println("char array of type" + temp1);
-//            System.out.println("char array of zeroes" + chars);
-//            String[] strs= new String[(chars.length+1)/2];
-//            for(int i=0,j=0;i<chars.length;i+=2,j++)
-//            {
-//               strs[j]=new String(Arrays.copyOfRange(chars,i,i+2));
-//               System.out.println(strs[j]);
-//            }
+
             
             return this;
         }
@@ -215,8 +193,18 @@ public class Packet {
         }
         public Builder setSequenceNumber(long sequenceNumber) {
             this.sequenceNumber = sequenceNumber;
-            this.seqN = (int) (sequenceNumber);
-            this.ackN =  (int) (this.sequenceNumber >> 32);
+            System.out.println("Big seq "+this.sequenceNumber);
+            byte[] data = new byte[2]; // <- assuming "in" value in 0..65535 range and we can use 2 bytes only
+
+            data[0] = (byte)(sequenceNumber & 0xFF);
+            data[1] = (byte)((sequenceNumber >> 8) & 0xFF);
+
+            this.ackN = data[1] >= 0 ? data[1] : 256 + data[1];
+            this.seqN = data[0] >= 0 ? data[0] : 256 + data[0];
+//            this.seqN = ((int) (sequenceNumber << 16))/);
+//            this.ackN =  (int) (this.sequenceNumber >> 16);
+            System.out.println("in s ack N "+this.ackN);
+            System.out.println("in s seq N "+this.seqN);
             return this;
         }
 
@@ -249,7 +237,7 @@ public class Packet {
         }
         
         public int getackN(){
-        	this.ackN =  (int) (sequenceNumber >> 32);
+        	this.ackN =  (int) (sequenceNumber >> 16);
         	return this.ackN;
         }
        
@@ -287,6 +275,8 @@ public class Packet {
         	return this.FinFlag == 1;
         }
         public Packet create() {
+        	System.out.println("ack N "+this.ackN);
+            System.out.println("seq N "+this.seqN);
             return new Packet(type, seqN, ackN, peerAddress, portNumber, payload);
         }
     }
