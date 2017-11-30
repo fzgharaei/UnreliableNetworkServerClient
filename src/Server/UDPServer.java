@@ -25,6 +25,8 @@ public class UDPServer {
     final static int WINDOW_SIZE = 8;
     static int mainPort;
     static int lastPort;
+    DatagramChannel channel;
+    SocketAddress router;
     private static State state = State.NONE;
     static ArrayList<ClientHandler> clients;
     static int[] window;
@@ -38,12 +40,18 @@ public class UDPServer {
         UDPServer server = new UDPServer();
         clients = new ArrayList<ClientHandler>();
         state = State.NONE;
-        server.listenAndServe(mainPort);
+        try{
+        	server.listenAndServe(mainPort);
+        }catch (IOException e) {
+			// TODO Auto-generated catch block
+        	System.out.println("Cannot bind socket to port "+mainPort);
+			e.printStackTrace();
+        }
     }
 
     private void listenAndServe(int port) throws IOException {
 
-        try (DatagramChannel channel = DatagramChannel.open()) {
+        this.channel = DatagramChannel.open();
             channel.bind(new InetSocketAddress(port));
 //            logger.info("EchoServer is listening at {}", channel.getLocalAddress());
             System.out.println("EchoServer is listening at {} "+ channel.getLocalAddress());
@@ -54,7 +62,7 @@ public class UDPServer {
 
 //            for (; ; ) {
                 buf.clear();
-                SocketAddress router = channel.receive(buf);
+                router = channel.receive(buf);
                 System.out.println(buf.toString());
                 // Parse a packet from the received raw data.
                 buf.flip();
@@ -97,7 +105,7 @@ public class UDPServer {
                                System.out.println("here1");
 //							clientchannel.bind(new InetSocketAddress(lastPort));
 							System.out.println("EchoServer is listening to a new client at {} "+ channel.getLocalAddress());
-            	            ClientHandler newCli = new ClientHandler(lastPort, resp, channel, router);
+            	            ClientHandler newCli = new ClientHandler(lastPort, resp);
             	            clients.add(newCli);
             	            Thread cliListener = new Thread(newCli);
             	            cliListener.start();
@@ -110,12 +118,7 @@ public class UDPServer {
                 	//reverse the packet and response the server cannot give service to client at this time...
                 }
 //            }
-        } catch (IOException e) {
-			// TODO Auto-generated catch block
-        	System.out.println("Cannot bind socket to port "+port);
-			e.printStackTrace();
-			return;
-		}
+        
         	
     }
     private static Thread timerThread(final int seconds){
@@ -139,19 +142,19 @@ public class UDPServer {
     	int[] window;
         int startWindow;
         int numberOfTimeouts;
-        DatagramChannel channel;
-        SocketAddress router;
+//        DatagramChannel channel;
+//        SocketAddress router;
         final int port;
         int cliSeqN;
         int cliAckN;
         Packet infoPacket;
-        ClientHandler(int port, Packet initial, DatagramChannel channel, SocketAddress router){
+        ClientHandler(int port, Packet initial){
         	this.port = port;
         	state = State.SYN_RECV;
         	System.out.println("Threeway handshake 2/3 with" + initial.getPeerAddress() +":"+ initial.getPeerPort());
         	infoPacket = initial;
-        	this.channel = channel;
-        	this.router = router;
+//        	this.channel = channel;
+//        	this.router = router;
         	this.cliAckN = initial.getAckN();
         	this.cliSeqN = initial.getSeqN();
         }
@@ -171,31 +174,34 @@ public class UDPServer {
     		
     	}
     	public void serve() throws IOException, InterruptedException{
-    		System.out.println("here2");
+//    		System.out.println("here2");
     		state = State.SYN_RECV;
     		ByteBuffer buf = ByteBuffer
                     .allocate(Packet.MAX_LEN)
                     .order(ByteOrder.BIG_ENDIAN);
     		System.out.println("here2.1");
     		while(true){
-    			System.out.println("here2.2");
+//    			System.out.println("here2.2");
     			buf.clear();
     			router = channel.receive(buf);
     			buf.flip();
                 Packet packet = Packet.fromBuffer(buf);
-                System.out.println("here2.3");
+//                System.out.println("here2.3");
 //                System.out.println(packet);
                 buf.flip();
-                System.out.println("here2.5");
+//                System.out.println("here2.5");
                 // some time managment should happen here!
     			if(state == State.SYN_RECV){
-    				System.out.println("here3");
+//    				System.out.println("here3");
     				
     				if(packet.toBuilder().hasAckFlag()){
-    					System.out.println("here4");
-    					
-    					if(packet.toBuilder().getackN() == (cliSeqN) && packet.toBuilder().getseqN()==(++cliAckN) ){
-    					System.out.println("here5");
+//    					System.out.println("here4");
+//    					System.out.println(packet.getAckN());
+//    					System.out.println(cliSeqN);
+//    					System.out.println(packet.getSeqN());
+//    					System.out.println(cliAckN);
+    					if(packet.getAckN() == (cliSeqN) && packet.getSeqN()==(cliAckN+1) ){
+//    						System.out.println("here5");
     					
     					state = State.ESTABLISHED;
     					System.out.println("Threeway handshake 3/3.");

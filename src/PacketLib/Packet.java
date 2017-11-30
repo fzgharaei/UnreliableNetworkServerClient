@@ -120,20 +120,20 @@ public class Packet {
         if (buf.limit() < MIN_LEN || buf.limit() > MAX_LEN) {
             throw new IOException("Invalid length");
         }
-        System.out.println("here3.1");
+//        System.out.println("here3.1");
         Builder builder = new Builder();
 
         builder.setType(Byte.toUnsignedInt(buf.get()));
         builder.setSequenceNumber(Integer.toUnsignedLong(buf.getInt()));
-        System.out.println("here3.2");
+//        System.out.println("here3.2");
         byte[] host = new byte[]{buf.get(), buf.get(), buf.get(), buf.get()};
         builder.setPeerAddress(Inet4Address.getByAddress(host));
         builder.setPortNumber(Short.toUnsignedInt(buf.getShort()));
-        System.out.println("here3.3");
+//        System.out.println("here3.3");
         byte[] payload = new byte[buf.remaining()];
         buf.get(payload);
         builder.setPayload(payload);
-        System.out.println("here3.4");
+//        System.out.println("here3.4");
         return builder.create();
     }
 
@@ -149,7 +149,7 @@ public class Packet {
 
     @Override
     public String toString() {
-    	System.out.println("here2.4");
+//    	System.out.println("here2.4");
         return String.format("#%d peer=%s:%d, size=%d", sequenceNumber, peerAddress, peerPort, payload.length);
     }
 
@@ -180,7 +180,7 @@ public class Packet {
         }
         public Builder setType(){
         	this.type = AckFlag | (SynFlag << 2) | (FinFlag << 4) | (dataFlag << 6);
-        	System.out.println("in setType()" + type);
+//        	System.out.println("in setType()" + type);
         	return this;
         }
         public Builder flipAcknSeq(){
@@ -203,8 +203,8 @@ public class Packet {
             this.seqN = data[0] >= 0 ? data[0] : 256 + data[0];
 //            this.seqN = ((int) (sequenceNumber << 16))/);
 //            this.ackN =  (int) (this.sequenceNumber >> 16);
-            System.out.println("in s ack N "+this.ackN);
-            System.out.println("in s seq N "+this.seqN);
+//            System.out.println("in s ack N "+this.ackN);
+//            System.out.println("in s seq N "+this.seqN);
             return this;
         }
 
@@ -275,8 +275,9 @@ public class Packet {
         	return this.FinFlag == 1;
         }
         public Packet create() {
-        	System.out.println("ack N "+this.ackN);
-            System.out.println("seq N "+this.seqN);
+//        	System.out.println("ack N "+this.ackN);
+//            System.out.println("seq N "+this.seqN);
+            
             return new Packet(type, seqN, ackN, peerAddress, portNumber, payload);
         }
     }
